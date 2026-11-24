@@ -1,0 +1,23 @@
+{
+  "name": "orca-vapi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Vapi Orca: unofficial, read-only Vapi console plugin for the Orca IDE",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "types": "orca plugin types .",
+    "typecheck": "tsc -p .",
+    "test": "orca plugin test .",
+    "validate": "orca plugin validate .",
+    "inspect": "orca plugin inspect .",
+    "dev": "orca plugin dev watch .",
+    "check": "npm run typecheck && npm run test && npm run validate"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

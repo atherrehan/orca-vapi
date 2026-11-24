@@ -1,0 +1,60 @@
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  padding: 12px;
+  font: 13px/1.45 system-ui, sans-serif;
+  color: var(--orca-foreground);
+  background: var(--orca-background);
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.muted {
+  opacity: 0.7;
+}
+
+.disclaimer {
+  margin: 0 0 12px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.status {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.status dt {
+  opacity: 0.7;
+}
+
+.status dd {
+  margin: 0;
+}
+
+.ok {
+  color: var(--orca-success, #2e9e5b);
+}
+
+.warn {
+  color: var(--orca-warning, #c98a00);
+}
+
+.error {
+  color: var(--orca-error, #d14343);
+}
+
+footer {
+  margin-top: 16px;
+  font-size: 11px;
+  opacity: 0.6;
+}

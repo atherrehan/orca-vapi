@@ -1,0 +1,9 @@
+{
+  "extends": "./.orca/types/tsconfig.json",
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "exactOptionalPropertyTypes": true
+  },
+  "include": ["src", "test"]
+}

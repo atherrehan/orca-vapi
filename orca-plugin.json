@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stablyai/orca/main/docs/schemas/plugins/orca-plugin.v2.schema.json",
+  "manifestVersion": 2,
+  "id": "vapi",
+  "name": "Vapi Orca",
+  "version": "0.1.0",
+  "description": "Unofficial, read-only Vapi console for Orca: browse assistants, calls, transcripts, tool calls and costs next to your code. Not affiliated with Vapi.",
+  "author": {
+    "name": "atherrehan",
+    "url": "https://github.com/atherrehan"
+  },
+  "repository": "https://github.com/atherrehan/orca-vapi",
+  "homepage": "https://github.com/atherrehan/orca-vapi",
+  "license": "MIT",
+  "engines": {
+    "orca": ">=1.4.248"
+  },
+  "execution": "trusted-worker",
+  "pluginApi": 1,
+  "main": "src/worker/main.ts",
+  "contributes": {
+    "panels": [
+      {
+        "id": "vapi",
+        "title": "Vapi",
+        "icon": "bot",
+        "entry": "src/panel/index.html"
+      }
+    ]
+  },
+  "capabilities": [
+    { "kind": "secrets:own" },
+    { "kind": "storage:own" }
+  ]
+}
