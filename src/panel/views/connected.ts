@@ -3,20 +3,22 @@ import type { NetworkEntry, VapiState } from '../../shared/protocol.ts'
 import { button, el, footer, header } from '../dom.ts'
 import { resourceBrowser, type BrowserActions } from './browser.ts'
 import { callsView, type CallActions } from './calls.ts'
+import { insightsView, type InsightActions } from './insights.ts'
 import { networkSection } from './network.ts'
 
-export type ConnectedActions = BrowserActions & CallActions & {
+export type ConnectedActions = BrowserActions & CallActions & InsightActions & {
   disconnect(): Promise<string | null>
   network(): Promise<NetworkEntry[]>
 }
 
 const CONFIRM_MS = 4000
 
-/** Calls and Configuration, each built on first visit and kept so switching keeps its state. */
+/** Calls, Insights and Config, each built on first visit and kept so switching keeps its state. */
 function sections(actions: ConnectedActions): HTMLElement {
   const views: { label: string; build: () => HTMLElement; node?: HTMLElement }[] = [
     { label: 'Calls', build: () => callsView(actions) },
-    { label: 'Configuration', build: () => resourceBrowser(actions) }
+    { label: 'Insights', build: () => insightsView(actions) },
+    { label: 'Config', build: () => resourceBrowser(actions) }
   ]
   const nav = el('div', { className: 'segmented', attrs: { role: 'tablist' } })
   const host = el('div')

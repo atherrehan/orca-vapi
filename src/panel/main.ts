@@ -77,6 +77,7 @@ function render(state: VapiState): void {
       calls: (input) => safely(orca.plugin.request('vapi.calls.list', input)),
       call: (id) => safely(orca.plugin.request('vapi.calls.get', { id })),
       assistants: () => safely(orca.plugin.request('vapi.resources.list', { kind: 'assistant' })),
+      insights: (range, refresh) => safely(orca.plugin.request('vapi.insights', { range, refresh })),
       openExternal
     })
   )

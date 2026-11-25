@@ -8,6 +8,7 @@ import type { FetchLike } from './http.ts'
 import { KeyStore, orcaSecretsPort } from './keystore.ts'
 import { NetworkLog } from './network-log.ts'
 import { Calls } from './calls.ts'
+import { InsightsService } from './insights.ts'
 import { Resources } from './resources.ts'
 import { scrub } from './scrub.ts'
 import { TtlCache } from './cache.ts'
@@ -44,6 +45,7 @@ export function createRuntime(orca: OrcaWorkerApi, deps: RuntimeDeps = {}): void
   const client = makeClient(() => keys.load())
   const resources = new Resources(client, cache)
   const calls = new Calls(client, cache, resources)
+  const insights = new InsightsService(client, cache, resources)
   const forget = async (): Promise<void> => {
     cache.clear()
     await connection.disconnect()
@@ -95,6 +97,10 @@ export function createRuntime(orca: OrcaWorkerApi, deps: RuntimeDeps = {}): void
 
   orca.panels.handle('vapi.calls.get', (input, { signal }) =>
     settle(() => calls.get(input?.id, signal))
+  )
+
+  orca.panels.handle('vapi.insights', (input, { signal }) =>
+    settle(() => insights.get(input?.range, input?.refresh === true, signal))
   )
 
   orca.commands.register('vapi.refresh', () => {

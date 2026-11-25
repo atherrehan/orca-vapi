@@ -121,6 +121,21 @@ export type CallDetail = {
   redacted: number
 }
 
+export const INSIGHT_RANGES = ['24h', '7d', '14d', '30d'] as const
+export type InsightRange = (typeof INSIGHT_RANGES)[number]
+
+export type Insights = {
+  range: InsightRange
+  start: string
+  end: string
+  totals: { calls: number; cost: number; avgDurationSec: number | null }
+  costs: CostLine[]
+  byAssistant: { assistantId: string; name: string; calls: number; cost: number }[]
+  byEndedReason: { reason: string; severity: Severity; calls: number }[]
+  daily: { date: string; calls: number; cost: number }[]
+  fetchedAt: string
+}
+
 declare module 'orca' {
   interface PluginRequests {
     /** Connection and environment state. */
@@ -148,6 +163,8 @@ declare module 'orca' {
     }
     /** One call: transcript, tool-call timeline, costs and a redacted raw view. */
     'vapi.calls.get': { input: { id: string }; output: Result<CallDetail> }
+    /** Cost and call aggregates from POST /analytics (read-only). */
+    'vapi.insights': { input: { range: InsightRange; refresh?: boolean }; output: Result<Insights> }
   }
   interface PluginPanelEvents {
     /** Tells every open panel to reload its state. */
