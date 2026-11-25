@@ -1,65 +1,70 @@
 // The panel. It runs in Orca's isolated frame with no network; everything it shows comes from
-// the worker through orca.plugin.request. Text is only ever set with textContent, never innerHTML.
+// the worker through orca.plugin.request. The key typed here is handed straight to the worker
+// and never kept: the input is cleared before the request is sent.
 import type { VapiState } from '../shared/protocol.ts'
+import { el, header } from './dom.ts'
+import { connectedView } from './views/connected.ts'
+import { onboardingView } from './views/onboarding.ts'
 
-type Child = Node | string
+/** Connect makes one request to Vapi (10 s timeout, up to two 429 retries); give the worker 30 s. */
+const CONNECT_TIMEOUT_MS = 30_000
 
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  props: { className?: string; text?: string } = {},
-  children: Child[] = []
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag)
-  if (props.className) node.className = props.className
-  if (props.text !== undefined) node.textContent = props.text
-  for (const child of children) node.append(child)
-  return node
+const root = document.getElementById('app')
+
+function show(view: HTMLElement): void {
+  root?.replaceChildren(view)
 }
 
-function keyringLabel(state: VapiState): HTMLElement {
-  if (state.keyring === 'os-keyring') return el('span', { className: 'ok', text: 'OS keyring' })
-  if (state.keyring === 'unavailable') {
-    return el('span', { className: 'error', text: 'Unavailable: keys cannot be stored safely' })
-  }
-  return el('span', { className: 'warn', text: 'Unknown' })
+function skeleton(): HTMLElement {
+  return el('main', { className: 'view' }, [
+    header(),
+    el('div', { className: 'skeleton' }),
+    el('div', { className: 'skeleton short' })
+  ])
 }
 
-function renderState(root: HTMLElement, state: VapiState): void {
-  root.replaceChildren(
-    el('h1', { text: 'Vapi Orca' }),
-    el('p', { className: 'disclaimer', text: 'Unofficial. Not affiliated with or endorsed by Vapi.' }),
-    el('dl', { className: 'status' }, [
-      el('dt', { text: 'Connection' }),
-      el('dd', {
-        className: state.connected ? 'ok' : 'muted',
-        text: state.connected ? 'Connected' : 'Not connected'
-      }),
-      el('dt', { text: 'Secret storage' }),
-      el('dd', {}, [keyringLabel(state)])
-    ]),
-    el('footer', { text: `v${state.version} · read-only` })
-  )
-}
-
-function renderError(root: HTMLElement, error: unknown): void {
-  const code = (error as { code?: unknown })?.code
-  root.replaceChildren(
-    el('h1', { text: 'Vapi Orca' }),
+function failure(error: unknown): HTMLElement {
+  const code = (error as { code?: unknown } | null)?.code
+  return el('main', { className: 'view' }, [
+    header(),
     el('p', {
       className: 'error',
       text: `Could not reach the plugin worker${typeof code === 'string' ? ` (${code})` : ''}.`
     })
+  ])
+}
+
+function render(state: VapiState): void {
+  if (!state.connected) {
+    show(
+      onboardingView(state, {
+        async connect(apiKey) {
+          const result = await orca.plugin.request('vapi.connect', { apiKey }, { timeoutMs: CONNECT_TIMEOUT_MS })
+          return result.ok ? null : result.error.message
+        }
+      })
+    )
+    return
+  }
+  show(
+    connectedView(state, {
+      async disconnect() {
+        const result = await orca.plugin.request('vapi.disconnect')
+        return result.ok ? null : result.error.message
+      },
+      network: () => orca.plugin.request('vapi.network.recent')
+    })
   )
 }
 
-async function start(): Promise<void> {
-  const root = document.getElementById('app')
-  if (!root) return
+async function reload(): Promise<void> {
   try {
-    renderState(root, await orca.plugin.request('vapi.state'))
+    render(await orca.plugin.request('vapi.state'))
   } catch (error) {
-    renderError(root, error)
+    show(failure(error))
   }
 }
 
-void start()
+show(skeleton())
+orca.plugin.on('vapi.changed', () => void reload())
+void reload()

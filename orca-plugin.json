@@ -26,6 +26,11 @@
         "icon": "bot",
         "entry": "src/panel/index.html"
       }
+    ],
+    "commands": [
+      { "id": "vapi.refresh", "title": "Vapi: Refresh" },
+      { "id": "vapi.disconnect", "title": "Vapi: Disconnect" },
+      { "id": "vapi.network", "title": "Vapi: Show network activity" }
     ]
   },
   "capabilities": [

@@ -1,14 +1,135 @@
-// Runs src/worker/main.ts's activate(orca) over Orca's mock host.
+// Runs the real worker wiring over Orca's mock host, with a fake fetch so nothing leaves the
+// machine.
 import { assert, mockHost, mountWorker, test } from 'orca/testing'
+import type { OrcaWorkerApi } from 'orca/worker'
 import * as main from '../src/worker/main.ts'
+import { createRuntime } from '../src/worker/runtime.ts'
+import type { FetchLike } from '../src/worker/http.ts'
+import { API_KEY_SECRET } from '../src/worker/keystore.ts'
 
-test('vapi.state reports not connected when no key is stored', async () => {
-  const host = mockHost()
+const KEY = '3f1c2a4b-5d6e-4f70-8a9b-0c1d2e3f4a5b'
+
+function fakeVapi(status = 200) {
+  const urls: string[] = []
+  const fetch: FetchLike = async (url) => {
+    urls.push(url)
+    return new Response(status === 200 ? '[]' : '{"message":"Invalid Key"}', { status })
+  }
+  return { fetch, urls }
+}
+
+async function mount(options: { status?: number; keyring?: string; secrets?: Record<string, string> } = {}) {
+  const vapi = fakeVapi(options.status)
+  const host = mockHost({
+    results: { 'secrets.protection': { status: options.keyring ?? 'os-keyring' } },
+    ...(options.secrets ? { secrets: options.secrets } : {})
+  })
+  const module = { default: (orca: OrcaWorkerApi) => createRuntime(orca, { fetch: vapi.fetch }) }
+  const worker = await mountWorker(module, { host })
+  return { worker, host, vapi }
+}
+
+test('the real main module starts and answers vapi.state', async () => {
+  const host = mockHost({ results: { 'secrets.protection': { status: 'os-keyring' } } })
   const worker = await mountWorker(main, { host })
   const state = await worker.request('vapi.state')
-  assert.equal(state.connected, false)
-  assert.equal(state.version, main.VERSION)
-  assert.ok(['os-keyring', 'unavailable', 'unknown'].includes(state.keyring))
+  assert.deepEqual(state, {
+    connected: false,
+    fingerprint: null,
+    keyring: 'os-keyring',
+    version: main.VERSION
+  })
   assert.deepEqual(worker.refusals, [])
+  await worker.deactivate()
+})
+
+test('connect checks the key with one read-only request, then stores it', async () => {
+  const { worker, host, vapi } = await mount()
+  const result = await worker.request('vapi.connect', { apiKey: `  ${KEY} ` })
+  assert.deepEqual(result, { ok: true, data: { fingerprint: '…4a5b' } })
+  assert.deepEqual(vapi.urls, ['https://api.vapi.ai/assistant?limit=1'])
+  assert.equal(host.data().secrets[API_KEY_SECRET], KEY)
+  assert.deepEqual(worker.posts, [{ event: 'vapi.changed', payload: { reason: 'connected' } }])
+
+  const state = await worker.request('vapi.state')
+  assert.equal(state.connected, true)
+  assert.equal(state.fingerprint, '…4a5b')
+  assert.ok(!JSON.stringify(state).includes(KEY))
+  await worker.deactivate()
+})
+
+test('a key Vapi rejects is not stored', async () => {
+  const { worker, host } = await mount({ status: 401 })
+  const result = await worker.request('vapi.connect', { apiKey: KEY })
+  assert.equal(result.ok, false)
+  if (!result.ok) assert.equal(result.error.code, 'unauthorized')
+  assert.equal(host.data().secrets[API_KEY_SECRET], undefined)
+  assert.deepEqual(worker.posts, [])
+  await worker.deactivate()
+})
+
+test('a malformed key is refused before any request', async () => {
+  const { worker, vapi } = await mount()
+  for (const apiKey of ['', 'nope', 'has spaces in the middle of it']) {
+    const result = await worker.request('vapi.connect', { apiKey })
+    assert.equal(result.ok, false)
+    if (!result.ok) assert.equal(result.error.code, 'invalid_key')
+  }
+  assert.equal(vapi.urls.length, 0)
+  await worker.deactivate()
+})
+
+test('no key is accepted when the OS keyring is unavailable', async () => {
+  const { worker, host, vapi } = await mount({ keyring: 'unavailable' })
+  const result = await worker.request('vapi.connect', { apiKey: KEY })
+  assert.equal(result.ok, false)
+  if (!result.ok) assert.equal(result.error.code, 'keyring_unavailable')
+  assert.equal(vapi.urls.length, 0)
+  assert.equal(host.data().secrets[API_KEY_SECRET], undefined)
+  await worker.deactivate()
+})
+
+test('disconnect removes the key and clears network activity', async () => {
+  const { worker, host } = await mount()
+  await worker.request('vapi.connect', { apiKey: KEY })
+  assert.equal((await worker.request('vapi.network.recent')).length, 1)
+
+  assert.deepEqual(await worker.request('vapi.disconnect'), { ok: true, data: null })
+  assert.equal(host.data().secrets[API_KEY_SECRET], undefined)
+  assert.equal((await worker.request('vapi.network.recent')).length, 0)
+  assert.equal((await worker.request('vapi.state')).connected, false)
+  await worker.deactivate()
+})
+
+test('network activity never contains the key', async () => {
+  const { worker } = await mount()
+  await worker.request('vapi.connect', { apiKey: KEY })
+  const entries = await worker.request('vapi.network.recent')
+  assert.equal(entries[0]?.path, '/assistant')
+  assert.deepEqual(entries[0]?.queryKeys, ['limit'])
+  assert.ok(!JSON.stringify(entries).includes(KEY))
+  await worker.deactivate()
+})
+
+test('commands: refresh, network and disconnect', async () => {
+  const { worker, host } = await mount({ secrets: { [API_KEY_SECRET]: KEY } })
+  assert.equal(await worker.command('vapi.refresh'), 'Vapi Orca: refreshed.')
+  assert.match(String(await worker.command('vapi.network')), /no requests/)
+  assert.match(String(await worker.command('vapi.disconnect')), /disconnected/)
+  assert.equal(host.data().secrets[API_KEY_SECRET], undefined)
+  assert.equal(await worker.command('vapi.disconnect'), 'Vapi Orca: not connected.')
+  assert.deepEqual(
+    worker.posts.map((post) => post.payload),
+    [{ reason: 'refresh' }, { reason: 'disconnected' }]
+  )
+  await worker.deactivate()
+})
+
+test('worker logs never contain the key', async () => {
+  const { worker } = await mount()
+  await worker.request('vapi.connect', { apiKey: KEY })
+  await worker.request('vapi.disconnect')
+  assert.ok(worker.logs.length > 0)
+  assert.ok(!worker.logs.join('\n').includes(KEY))
   await worker.deactivate()
 })
