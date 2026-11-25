@@ -12,6 +12,11 @@
   "repository": "https://github.com/atherrehan/orca-vapi",
   "homepage": "https://github.com/atherrehan/orca-vapi",
   "license": "MIT",
+  "icon": "assets/icon.png",
+  "cover": {
+    "path": "assets/cover.png",
+    "alt": "Vapi Orca: a read-only Vapi console inside Orca with calls, a tool-call debugger and cost insights"
+  },
   "engines": {
     "orca": ">=1.4.248"
   },
@@ -34,7 +39,6 @@
     ]
   },
   "capabilities": [
-    { "kind": "secrets:own" },
-    { "kind": "storage:own" }
+    { "kind": "secrets:own" }
   ]
 }

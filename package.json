@@ -15,7 +15,8 @@
     "validate": "orca plugin validate .",
     "inspect": "orca plugin inspect .",
     "dev": "orca plugin dev watch .",
-    "check": "npm run typecheck && npm run test && npm run validate"
+    "audit:static": "node scripts/audit.mjs",
+    "check": "npm run audit:static && npm run typecheck && npm run test && npm run validate"
   },
   "devDependencies": {
     "typescript": "7.0.2"

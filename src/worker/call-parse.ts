@@ -226,6 +226,13 @@ function withoutConversation(value: unknown): unknown {
   const raw = { ...record(value) }
   delete raw.messages
   delete raw.transcript
+  if (raw.customer) {
+    const customer = { ...record(raw.customer) }
+    for (const field of ['number', 'sipUri']) {
+      if (typeof customer[field] === 'string') customer[field] = maskNumber(customer[field])
+    }
+    raw.customer = customer
+  }
   if (raw.artifact) {
     const artifact = { ...record(raw.artifact) }
     delete artifact.messages
