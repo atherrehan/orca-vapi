@@ -131,7 +131,7 @@ scripts/      audit.mjs: the static security audit
 
 ## Changelog
 
-### 0.1.0 (unreleased)
+### 0.1.0 (2026-11-25)
 
 - Connect and disconnect, with the key in the OS keyring.
 - Calls, call detail and the tool-call debugger.
