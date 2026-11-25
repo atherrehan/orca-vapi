@@ -230,6 +230,151 @@ table.net tr.error td {
   color: var(--vo-error);
 }
 
+.tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--vo-border);
+  margin-bottom: 8px;
+}
+
+.tab {
+  padding: 4px 8px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: inherit;
+  font: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.tab.selected {
+  border-bottom-color: var(--vo-accent);
+  opacity: 1;
+  font-weight: 600;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.toolbar .input {
+  flex: 1;
+}
+
+.input.small {
+  padding: 3px 6px;
+  font-size: 12px;
+}
+
+.meta {
+  margin: 0 0 6px;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row-btn {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 8px;
+  width: 100%;
+  padding: 6px 4px;
+  border: none;
+  border-bottom: 1px solid var(--vo-border);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row-btn:hover {
+  background: var(--vo-subtle);
+}
+
+.row-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-date {
+  grid-row: 1;
+  grid-column: 2;
+}
+
+.row-sub {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  border: 1px solid color-mix(in srgb, var(--vo-warn) 60%, transparent);
+  color: var(--vo-warn);
+}
+
+.j-tree {
+  font-size: 11.5px;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+.j-children {
+  padding-left: 14px;
+  border-left: 1px dashed var(--vo-border);
+  margin-left: 3px;
+}
+
+.j-node > summary {
+  cursor: pointer;
+  font-weight: 400;
+  margin: 0;
+}
+
+.j-row {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.j-key {
+  opacity: 0.75;
+}
+
+.j-shape,
+.j-null {
+  opacity: 0.55;
+}
+
+.j-string {
+  color: var(--vo-ok);
+}
+
+.j-number,
+.j-boolean {
+  color: var(--vo-accent);
+}
+
+.j-redacted {
+  color: var(--vo-warn);
+  font-style: italic;
+}
+
 .skeleton {
   height: 14px;
   border-radius: 4px;

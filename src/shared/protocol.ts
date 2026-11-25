@@ -32,6 +32,36 @@ export type NetworkEntry = {
 
 export type ChangeReason = 'connected' | 'disconnected' | 'refresh'
 
+export type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
+
+export const RESOURCE_KINDS = ['assistant', 'squad', 'tool', 'phone-number'] as const
+export type ResourceKind = (typeof RESOURCE_KINDS)[number]
+
+/** One row in a resource list. */
+export type ResourceSummary = {
+  id: string
+  name: string
+  subtitle: string
+  updatedAt: string | null
+}
+
+export type ResourceList = {
+  kind: ResourceKind
+  items: ResourceSummary[]
+  fetchedAt: string
+  /** Vapi returned a full page; there may be more than the plugin shows. */
+  truncated: boolean
+}
+
+export type ResourceDetail = {
+  kind: ResourceKind
+  summary: ResourceSummary
+  /** The item's config with secrets, auth headers and credentials replaced by `[redacted]`. */
+  data: Json
+  /** How many values the redactor replaced. */
+  redacted: number
+}
+
 declare module 'orca' {
   interface PluginRequests {
     /** Connection and environment state. */
@@ -42,6 +72,16 @@ declare module 'orca' {
     'vapi.disconnect': { output: Result<null> }
     /** Recent requests to api.vapi.ai, newest first. */
     'vapi.network.recent': { output: NetworkEntry[] }
+    /** Assistants, squads, tools or phone numbers, summarised; cached for a minute. */
+    'vapi.resources.list': {
+      input: { kind: ResourceKind; refresh?: boolean }
+      output: Result<ResourceList>
+    }
+    /** One item's redacted config. */
+    'vapi.resources.get': {
+      input: { kind: ResourceKind; id: string }
+      output: Result<ResourceDetail>
+    }
   }
   interface PluginPanelEvents {
     /** Tells every open panel to reload its state. */

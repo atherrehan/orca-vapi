@@ -7,9 +7,12 @@ import { Connection, clientFactory } from './connection.ts'
 import type { FetchLike } from './http.ts'
 import { KeyStore, orcaSecretsPort } from './keystore.ts'
 import { NetworkLog } from './network-log.ts'
+import { Resources } from './resources.ts'
 import { scrub } from './scrub.ts'
+import { TtlCache } from './cache.ts'
 
 export const VERSION = '0.1.0'
+const CACHE_TTL_MS = 60_000
 
 export type RuntimeDeps = { fetch?: FetchLike }
 
@@ -34,12 +37,14 @@ function formatNetwork(entries: NetworkEntry[]): string {
 export function createRuntime(orca: OrcaWorkerApi, deps: RuntimeDeps = {}): void {
   const keys = new KeyStore(orcaSecretsPort(orca))
   const network = new NetworkLog(50)
-  const connection = new Connection(
-    keys,
-    clientFactory(network, deps.fetch ? { fetch: deps.fetch } : {}),
-    network,
-    VERSION
-  )
+  const cache = new TtlCache<unknown>(CACHE_TTL_MS)
+  const makeClient = clientFactory(network, deps.fetch ? { fetch: deps.fetch } : {})
+  const connection = new Connection(keys, makeClient, network, VERSION)
+  const resources = new Resources(makeClient(() => keys.load()), cache)
+  const forget = async (): Promise<void> => {
+    cache.clear()
+    await connection.disconnect()
+  }
   const log = async (message: string): Promise<void> => {
     orca.log(scrub(message, [await keys.load()]))
   }
@@ -50,6 +55,7 @@ export function createRuntime(orca: OrcaWorkerApi, deps: RuntimeDeps = {}): void
   orca.panels.handle('vapi.connect', async (input, { signal }) => {
     const result = await settle(() => connection.connect(input?.apiKey, signal))
     if (result.ok) {
+      cache.clear()
       await log(`Connected (${result.data.fingerprint})`)
       changed('connected')
     } else {
@@ -60,7 +66,7 @@ export function createRuntime(orca: OrcaWorkerApi, deps: RuntimeDeps = {}): void
 
   orca.panels.handle('vapi.disconnect', async () => {
     const result = await settle(async () => {
-      await connection.disconnect()
+      await forget()
       return null
     })
     if (result.ok) {
@@ -72,14 +78,23 @@ export function createRuntime(orca: OrcaWorkerApi, deps: RuntimeDeps = {}): void
 
   orca.panels.handle('vapi.network.recent', () => network.recent())
 
+  orca.panels.handle('vapi.resources.list', (input, { signal }) =>
+    settle(() => resources.list(input?.kind, input?.refresh === true, signal))
+  )
+
+  orca.panels.handle('vapi.resources.get', (input, { signal }) =>
+    settle(() => resources.get(input?.kind, input?.id, signal))
+  )
+
   orca.commands.register('vapi.refresh', () => {
+    cache.clear()
     changed('refresh')
     return 'Vapi Orca: refreshed.'
   })
 
   orca.commands.register('vapi.disconnect', async () => {
     if (!(await keys.hasKey())) return 'Vapi Orca: not connected.'
-    await connection.disconnect()
+    await forget()
     changed('disconnected')
     return 'Vapi Orca: disconnected. The API key was removed from the OS keyring.'
   })

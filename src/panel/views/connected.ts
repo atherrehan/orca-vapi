@@ -1,9 +1,10 @@
-// Shown once a key is stored: connection status, disconnect, and network activity.
+// Shown once a key is stored: connection status, the resource browser and network activity.
 import type { NetworkEntry, VapiState } from '../../shared/protocol.ts'
 import { button, el, footer, header } from '../dom.ts'
+import { resourceBrowser, type BrowserActions } from './browser.ts'
 import { networkSection } from './network.ts'
 
-export type ConnectedActions = {
+export type ConnectedActions = BrowserActions & {
   disconnect(): Promise<string | null>
   network(): Promise<NetworkEntry[]>
 }
@@ -48,12 +49,7 @@ export function connectedView(state: VapiState, actions: ConnectedActions): HTML
       disconnect
     ]),
     message,
-    el('section', { className: 'section placeholder' }, [
-      el('p', {
-        className: 'muted',
-        text: 'Assistants, calls, transcripts and insights are coming in the next milestones.'
-      })
-    ]),
+    resourceBrowser(actions),
     networkSection(actions.network),
     footer(state.version)
   ])

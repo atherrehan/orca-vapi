@@ -6,6 +6,7 @@ import * as main from '../src/worker/main.ts'
 import { createRuntime } from '../src/worker/runtime.ts'
 import type { FetchLike } from '../src/worker/http.ts'
 import { API_KEY_SECRET } from '../src/worker/keystore.ts'
+import { ASSISTANT, BY_PATH, SECRETS } from './fixtures/vapi.ts'
 
 const KEY = '3f1c2a4b-5d6e-4f70-8a9b-0c1d2e3f4a5b'
 
@@ -122,6 +123,54 @@ test('commands: refresh, network and disconnect', async () => {
     worker.posts.map((post) => post.payload),
     [{ reason: 'refresh' }, { reason: 'disconnected' }]
   )
+  await worker.deactivate()
+})
+
+test('resources: list and redacted detail through the panel API', async () => {
+  const urls: string[] = []
+  const fetch: FetchLike = async (url) => {
+    urls.push(url)
+    const path = new URL(url).pathname
+    return path in BY_PATH
+      ? new Response(JSON.stringify(BY_PATH[path]))
+      : new Response('{}', { status: 404 })
+  }
+  const host = mockHost({
+    results: { 'secrets.protection': { status: 'os-keyring' } },
+    secrets: { [API_KEY_SECRET]: KEY }
+  })
+  const worker = await mountWorker(
+    { default: (orca: OrcaWorkerApi) => createRuntime(orca, { fetch }) },
+    { host }
+  )
+
+  const list = await worker.request('vapi.resources.list', { kind: 'phone-number' })
+  assert.ok(list.ok)
+  if (list.ok) assert.equal(list.data.items[0]?.name, '+61400000000')
+
+  const detail = await worker.request('vapi.resources.get', { kind: 'assistant', id: ASSISTANT.id })
+  assert.ok(detail.ok)
+  const text = JSON.stringify(detail)
+  for (const secret of SECRETS) assert.ok(!text.includes(secret), secret)
+
+  await worker.request('vapi.resources.list', { kind: 'phone-number' })
+  assert.equal(urls.length, 2, 'second list call is served from the cache')
+  await worker.command('vapi.refresh')
+  await worker.request('vapi.resources.list', { kind: 'phone-number' })
+  assert.equal(urls.length, 3, 'refresh clears the cache')
+
+  const bad = await worker.request('vapi.resources.list', { kind: 'credential' } as never)
+  assert.equal(bad.ok, false)
+  if (!bad.ok) assert.equal(bad.error.code, 'blocked_by_gate')
+  await worker.deactivate()
+})
+
+test('resources answer not_connected without a key', async () => {
+  const { worker, vapi } = await mount()
+  const list = await worker.request('vapi.resources.list', { kind: 'assistant' })
+  assert.equal(list.ok, false)
+  if (!list.ok) assert.equal(list.error.code, 'not_connected')
+  assert.equal(vapi.urls.length, 0)
   await worker.deactivate()
 })
 

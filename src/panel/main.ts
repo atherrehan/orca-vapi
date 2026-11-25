@@ -52,7 +52,9 @@ function render(state: VapiState): void {
         const result = await orca.plugin.request('vapi.disconnect')
         return result.ok ? null : result.error.message
       },
-      network: () => orca.plugin.request('vapi.network.recent')
+      network: () => orca.plugin.request('vapi.network.recent'),
+      list: (kind, refresh) => orca.plugin.request('vapi.resources.list', { kind, refresh }),
+      get: (kind, id) => orca.plugin.request('vapi.resources.get', { kind, id })
     })
   )
 }
