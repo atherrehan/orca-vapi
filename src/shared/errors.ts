@@ -16,6 +16,7 @@ export type VapiErrorCode =
   | 'bad_response'
   | 'server_error'
   | 'blocked_by_gate'
+  | 'plan_limit'
   | 'internal'
 
 export const ERROR_MESSAGES: Readonly<Record<VapiErrorCode, string>> = {
@@ -33,6 +34,7 @@ export const ERROR_MESSAGES: Readonly<Record<VapiErrorCode, string>> = {
   bad_response: 'Vapi sent a response the plugin could not read.',
   server_error: 'Vapi had a server error. Try again later.',
   blocked_by_gate: 'Blocked: this plugin only makes read-only requests to known Vapi endpoints.',
+  plan_limit: "That range goes past your Vapi plan's call-history retention. Pick a shorter range.",
   internal: 'Something went wrong inside the plugin.'
 }
 

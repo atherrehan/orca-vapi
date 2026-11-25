@@ -2,14 +2,43 @@
 import type { NetworkEntry, VapiState } from '../../shared/protocol.ts'
 import { button, el, footer, header } from '../dom.ts'
 import { resourceBrowser, type BrowserActions } from './browser.ts'
+import { callsView, type CallActions } from './calls.ts'
 import { networkSection } from './network.ts'
 
-export type ConnectedActions = BrowserActions & {
+export type ConnectedActions = BrowserActions & CallActions & {
   disconnect(): Promise<string | null>
   network(): Promise<NetworkEntry[]>
 }
 
 const CONFIRM_MS = 4000
+
+/** Calls and Configuration, each built on first visit and kept so switching keeps its state. */
+function sections(actions: ConnectedActions): HTMLElement {
+  const views: { label: string; build: () => HTMLElement; node?: HTMLElement }[] = [
+    { label: 'Calls', build: () => callsView(actions) },
+    { label: 'Configuration', build: () => resourceBrowser(actions) }
+  ]
+  const nav = el('div', { className: 'segmented', attrs: { role: 'tablist' } })
+  const host = el('div')
+  const show = (index: number): void => {
+    nav.replaceChildren(
+      ...views.map((view, i) =>
+        el('button', {
+          className: `seg${i === index ? ' selected' : ''}`,
+          text: view.label,
+          attrs: { type: 'button', role: 'tab', 'aria-selected': String(i === index) },
+          on: { click: () => show(i) }
+        })
+      )
+    )
+    const view = views[index]
+    if (!view) return
+    view.node ??= view.build()
+    host.replaceChildren(view.node)
+  }
+  show(0)
+  return el('div', { className: 'sections' }, [nav, host])
+}
 
 export function connectedView(state: VapiState, actions: ConnectedActions): HTMLElement {
   const message = el('p', { className: 'form-message', attrs: { role: 'status' } })
@@ -49,7 +78,7 @@ export function connectedView(state: VapiState, actions: ConnectedActions): HTML
       disconnect
     ]),
     message,
-    resourceBrowser(actions),
+    sections(actions),
     networkSection(actions.network),
     footer(state.version)
   ])

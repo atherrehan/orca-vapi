@@ -73,10 +73,17 @@ export function parseRetryAfter(value: string | null, now: number): number | und
   return Number.isNaN(date) ? undefined : Math.max(0, date - now)
 }
 
+/** Drops a body we will not read; a no-op once it has been read or is being read. */
+async function discard(response: Response): Promise<void> {
+  if (response.body && !response.body.locked && !response.bodyUsed) {
+    await response.body.cancel().catch(() => {})
+  }
+}
+
 async function readCapped(response: Response, maxBytes: number): Promise<string> {
   const declared = Number(response.headers.get('content-length'))
   if (Number.isFinite(declared) && declared > maxBytes) {
-    await response.body?.cancel()
+    await discard(response)
     throw new VapiError('too_large')
   }
   const reader = response.body?.getReader()
@@ -100,6 +107,17 @@ async function readCapped(response: Response, maxBytes: number): Promise<string>
     offset += chunk.byteLength
   }
   return new TextDecoder().decode(bytes)
+}
+
+/** Vapi answers 400 when a date filter reaches past the plan's call-history retention. The body
+ *  is only inspected here, capped, and never forwarded. */
+async function isRetentionLimit(response: Response): Promise<boolean> {
+  try {
+    const text = await readCapped(response, 4096)
+    return /retention window|call history/i.test(text)
+  } catch {
+    return false
+  }
 }
 
 export class VapiClient {
@@ -194,11 +212,14 @@ export class VapiClient {
       }
       status = response.status
       if (response.redirected || (response.status >= 300 && response.status < 400)) {
-        await response.body?.cancel()
+        await discard(response)
         throw new VapiError('blocked_by_gate', { status })
       }
       if (!response.ok) {
-        await response.body?.cancel()
+        if (response.status === 400 && (await isRetentionLimit(response))) {
+          throw new VapiError('plan_limit', { status })
+        }
+        await discard(response)
         throw statusError(
           response.status,
           parseRetryAfter(response.headers.get('retry-after'), this.#now())

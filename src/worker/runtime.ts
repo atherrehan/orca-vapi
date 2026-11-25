@@ -7,6 +7,7 @@ import { Connection, clientFactory } from './connection.ts'
 import type { FetchLike } from './http.ts'
 import { KeyStore, orcaSecretsPort } from './keystore.ts'
 import { NetworkLog } from './network-log.ts'
+import { Calls } from './calls.ts'
 import { Resources } from './resources.ts'
 import { scrub } from './scrub.ts'
 import { TtlCache } from './cache.ts'
@@ -40,7 +41,9 @@ export function createRuntime(orca: OrcaWorkerApi, deps: RuntimeDeps = {}): void
   const cache = new TtlCache<unknown>(CACHE_TTL_MS)
   const makeClient = clientFactory(network, deps.fetch ? { fetch: deps.fetch } : {})
   const connection = new Connection(keys, makeClient, network, VERSION)
-  const resources = new Resources(makeClient(() => keys.load()), cache)
+  const client = makeClient(() => keys.load())
+  const resources = new Resources(client, cache)
+  const calls = new Calls(client, cache, resources)
   const forget = async (): Promise<void> => {
     cache.clear()
     await connection.disconnect()
@@ -84,6 +87,14 @@ export function createRuntime(orca: OrcaWorkerApi, deps: RuntimeDeps = {}): void
 
   orca.panels.handle('vapi.resources.get', (input, { signal }) =>
     settle(() => resources.get(input?.kind, input?.id, signal))
+  )
+
+  orca.panels.handle('vapi.calls.list', (input, { signal }) =>
+    settle(() => calls.list(input ?? {}, signal))
+  )
+
+  orca.panels.handle('vapi.calls.get', (input, { signal }) =>
+    settle(() => calls.get(input?.id, signal))
   )
 
   orca.commands.register('vapi.refresh', () => {

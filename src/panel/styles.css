@@ -375,6 +375,143 @@ table.net tr.error td {
   font-style: italic;
 }
 
+.segmented {
+  display: flex;
+  border: 1px solid var(--vo-border);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.seg {
+  flex: 1;
+  padding: 5px 8px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.seg.selected {
+  background: var(--vo-subtle);
+  opacity: 1;
+  font-weight: 600;
+}
+
+.toolbar.wrap {
+  flex-wrap: wrap;
+}
+
+.toolbar select {
+  flex: 1;
+  min-width: 0;
+}
+
+.dot.ok {
+  color: var(--vo-ok);
+}
+
+.dot.warn {
+  color: var(--vo-warn);
+}
+
+.dot.error {
+  color: var(--vo-error);
+}
+
+.row-name .dot {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.more {
+  margin-top: 8px;
+}
+
+.call h2 {
+  margin-top: 8px;
+}
+
+dd.ok {
+  color: var(--vo-ok);
+}
+
+dd.warn {
+  color: var(--vo-warn);
+}
+
+dd.error {
+  color: var(--vo-error);
+}
+
+.tool {
+  border-bottom: 1px solid var(--vo-border);
+  padding: 4px 0;
+}
+
+.tool > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+  margin: 0;
+}
+
+.tool.failed > summary .tool-name {
+  color: var(--vo-error);
+}
+
+.tool-body {
+  padding: 4px 0 6px 14px;
+}
+
+.pre {
+  margin: 0;
+  padding: 6px;
+  border-radius: 4px;
+  background: var(--vo-subtle);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow: auto;
+}
+
+.transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.turn {
+  display: grid;
+  grid-template-columns: 34px 40px 1fr;
+  gap: 4px;
+  align-items: baseline;
+}
+
+.turn.assistant .who {
+  color: var(--vo-accent);
+}
+
+.turn.user .who {
+  color: var(--vo-ok);
+}
+
+.said {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+td.num {
+  text-align: right;
+}
+
+tr.total td {
+  font-weight: 600;
+}
+
 .skeleton {
   height: 14px;
   border-radius: 4px;

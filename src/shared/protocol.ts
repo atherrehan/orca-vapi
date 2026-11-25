@@ -62,6 +62,65 @@ export type ResourceDetail = {
   redacted: number
 }
 
+export const CALL_RANGES = ['24h', '7d', '30d', 'all'] as const
+export type CallRange = (typeof CALL_RANGES)[number]
+
+/** How a call ended, for colouring: fine, worth a look, or a failure. */
+export type Severity = 'ok' | 'warn' | 'error'
+
+export type CallSummary = {
+  id: string
+  assistantId: string | null
+  assistantName: string | null
+  type: string | null
+  status: string | null
+  endedReason: string | null
+  severity: Severity
+  startedAt: string | null
+  durationSec: number | null
+  cost: number | null
+  /** The customer's number with all but the last four digits masked. */
+  customer: string | null
+  createdAt: string
+}
+
+export type CallPage = {
+  items: CallSummary[]
+  /** Pass back as `before` to load older calls; null when there are no more. */
+  nextBefore: string | null
+  fetchedAt: string
+}
+
+export type TranscriptTurn = { role: 'assistant' | 'user' | 'tool'; text: string; at: number | null }
+
+export type ToolCallEntry = {
+  id: string
+  name: string
+  at: number | null
+  arguments: Json
+  result: string | null
+  /** Seconds between the call and its result, when Vapi timed both. */
+  seconds: number | null
+  failed: boolean
+  /** Why it counts as failed: no result, or an error-looking result. */
+  reason: string | null
+}
+
+export type CostLine = { label: string; amount: number }
+
+export type CallDetail = {
+  summary: CallSummary
+  endedReasonText: string | null
+  analysis: { summary: string | null; success: string | null }
+  recordingUrl: string | null
+  toolCalls: ToolCallEntry[]
+  transcript: TranscriptTurn[]
+  costs: CostLine[]
+  /** The call object without its message log, redacted. */
+  raw: Json
+  redacted: number
+}
+
 declare module 'orca' {
   interface PluginRequests {
     /** Connection and environment state. */
@@ -82,6 +141,13 @@ declare module 'orca' {
       input: { kind: ResourceKind; id: string }
       output: Result<ResourceDetail>
     }
+    /** A page of calls, newest first. */
+    'vapi.calls.list': {
+      input: { assistantId?: string; range: CallRange; before?: string; refresh?: boolean }
+      output: Result<CallPage>
+    }
+    /** One call: transcript, tool-call timeline, costs and a redacted raw view. */
+    'vapi.calls.get': { input: { id: string }; output: Result<CallDetail> }
   }
   interface PluginPanelEvents {
     /** Tells every open panel to reload its state. */
